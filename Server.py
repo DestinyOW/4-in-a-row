@@ -3,7 +3,7 @@ import socket
 
 class Board:
     def __init__(self):
-        self.board = [[0]*7 for _ in range(6)]  
+        self.board = [[0]*7 for _ in range(6)]
 
     def GetBoardData(self):
         boardstring = ""
@@ -25,11 +25,13 @@ class Board:
         return -1
 
     def CheckIfWin(self):
+        # vertical win
         for row in self.board:
             for i in range(len(row) - 3):
                 if row[i] == row[i+1] == row[i+2] == row[i+3] != 0:
                     return row[i] 
 
+        # horizontal win
         for col in zip(*self.board):
             for i in range(len(col) - 3):
                 if col[i] == col[i+1] == col[i+2] == col[i+3] != 0:
@@ -74,41 +76,55 @@ class Game:
 
         self.player1.conn.send(str(self.player1.ID).encode())
         self.player2.conn.send(str(self.player2.ID).encode())
+        print("Sending player 1", self.player1.ID)
+        print("Sending player 2", self.player2.ID)
 
 
     def GameLoop(self):
         while self.board.CheckIfWin() == 0 and '0' in self.board.GetBoardData():
-            if self.turn == self.player1.ID:
+            if self.turn:
                 data = int(self.player1.conn.recv(1024).decode())
+                print("Got from player 1", data)
                 row = self.board.AddToBoard(self.player1.ID, data)
 
                 while row == -1:
                     self.player1.conn.sendall("FALSE".encode())
                     data = int(self.player1.conn.recv(1024).decode())
+                    print("Got from player 1", data)
                     row = self.board.AddToBoard(self.player1.ID, data)
             else:
                 data = int(self.player2.conn.recv(1024).decode())
+                print("Got from player 2", data)
                 row = self.board.AddToBoard(self.player2.ID, data)
                 
                 while row == -1:
                     self.player2.conn.sendall("FALSE".encode())
                     data = int(self.player2.conn.recv(1024).decode())
+                    print("Got from player 1", data)
                     row = self.board.AddToBoard(self.player2.ID, data)
                 
             if self.board.CheckIfWin() == 0 and '0' in self.board.GetBoardData():
                 self.player1.conn.sendall(str(row).encode())
+                print("Sending player 1 row:", row)
                 self.player2.conn.sendall(str(row).encode())
+                print("Sending player 2 row:", row)
                 self.turn = self.player1.ID + self.player2.ID - self.turn
         
-        if self.board.checkifwin() == 1: 
+        if self.board.CheckIfWin() == 1: 
             self.player1.conn.sendall("WIN".encode())
+            print("Sending player 1 WIN")
             self.player2.conn.sendall("LOSE".encode())
+            print("Sending player 2 WIN")
         elif self.board.checkifwin() == 2: 
             self.player1.conn.sendall("LOSE".encode())
+            print("Sending player 1 LOSE")
             self.player2.conn.sendall("WIN".encode())
+            print("Sending player 2 WIN")
         else:
             self.player1.conn.sendall("TIE".encode())
+            print("Sending player 1 TIE")
             self.player2.conn.sendall("TIE".encode())
+            print("Sending player 2 TIE")
 
 
 def main():

@@ -18,6 +18,8 @@ CANVAS_UP_OFFSET = 300
 CANVAS_WIDTH = SCR_WIDTH - CANVAS_LEFT_OFFSET
 CANVAS_HEIGHT = SCR_HEIGHT - CANVAS_UP_OFFSET
 
+
+
 def GetAppScreen():
     screen = pygame.display.set_mode((SCR_WIDTH,SCR_HEIGHT))
     screen.fill(BACKGROUND_COLOR)
@@ -30,34 +32,32 @@ def DrawBoard(screen):
     canvas = pygame.Surface((CANVAS_WIDTH, CANVAS_HEIGHT)).convert()
     canvas.fill((255, 255, 255))
     
-    rect_space = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS
+    rect_space_x = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS + RECT_WIDTH
+    rect_space_y = (CANVAS_HEIGHT - RECT_WIDTH * (BOARD_ROWS +1)) / BOARD_ROWS + RECT_WIDTH
 
     for x in range(BOARD_COLS + 1):
-        rectangle = pygame.Rect(x * (rect_space + RECT_WIDTH), 0, RECT_WIDTH, CANVAS_HEIGHT)
+        rectangle = pygame.Rect(x * (rect_space_x), 0, RECT_WIDTH, CANVAS_HEIGHT)
         pygame.draw.rect(canvas, (0, 0, 0), rectangle)
-    
-    rect_space = (CANVAS_HEIGHT - RECT_WIDTH * (BOARD_ROWS +1)) / BOARD_ROWS
 
     for y in range(BOARD_ROWS + 1):
-        rectangle = pygame.Rect(0, y * (rect_space + RECT_WIDTH), CANVAS_WIDTH, RECT_WIDTH)
+        rectangle = pygame.Rect(0, y * (rect_space_y), CANVAS_WIDTH, RECT_WIDTH)
         pygame.draw.rect(canvas, (0, 0, 0), rectangle)
-    
-    screen.blit(canvas , (CANVAS_LEFT_OFFSET / 2, CANVAS_UP_OFFSET / 2))
+
+    screen.blit(canvas, (CANVAS_LEFT_OFFSET / 2, CANVAS_UP_OFFSET / 2))
     pygame.display.flip()
 
+    return canvas
 
-def AddToCanvas(screen, col, row, color):
-    canvas = pygame.Surface((CANVAS_WIDTH, CANVAS_HEIGHT)).convert()
-    canvas.fill((255, 255, 255))
-
-    rect_space_x = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS
-    rect_space_y = (CANVAS_HEIGHT - RECT_WIDTH * (BOARD_ROWS +1)) / BOARD_ROWS
-    radius = rect_space_x / 2
+ 
+def AddToCanvas(screen, canvas, col, row, color):
+    rect_space_x = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS + RECT_WIDTH
+    rect_space_y = (CANVAS_HEIGHT - RECT_WIDTH * (BOARD_ROWS +1)) / BOARD_ROWS + RECT_WIDTH
+    radius = int(rect_space_x /2)
     
-    print(canvas, color, (rect_space_x * col + radius, rect_space_y * row + radius), radius, CIRCLE_WIDTH)
-    pygame.draw.circle(canvas, color, (rect_space_x * col + radius, rect_space_y * row + radius), radius, CIRCLE_WIDTH)
+    print(canvas, color, (0, 0), radius, CIRCLE_WIDTH)
+    pygame.draw.circle(canvas, color, (0, 0), radius, CIRCLE_WIDTH)
 
-    screen.blit(canvas , (CANVAS_LEFT_OFFSET / 2, CANVAS_UP_OFFSET / 2))
+    screen.blit(canvas, (CANVAS_LEFT_OFFSET / 2, CANVAS_UP_OFFSET / 2))
     pygame.display.flip()
 
 
@@ -67,7 +67,7 @@ def CloseGame(soc):
     quit()
 
 
-def OnClick(screen, event, soc, color):
+def OnClick(screen, canvas, event, soc, color):
     mouse_x = event.pos[0]
     mouse_y = event.pos[1]
 
@@ -87,13 +87,13 @@ def OnClick(screen, event, soc, color):
             elif result in ("WIN", "LOSE", "TIE"):
                 pass
             else:
-                AddToCanvas(screen, x, int(result), color)
+                AddToCanvas(screen, canvas,x, int(result), color)
                 return False
 
 
 def main():
     screen = GetAppScreen()
-    DrawBoard(screen)
+    canvas = DrawBoard(screen)
 
     ip = '127.0.0.1'
     port = 42069
@@ -106,13 +106,13 @@ def main():
     else:
         my_color = (0, 0, 255)
     
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                CloseGame(soc)
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:
-                   my_turn = OnClick(screen, event, soc, my_color)
+    # while True:
+    #     for event in pygame.event.get():
+    #         if event.type == pygame.QUIT:
+    #             CloseGame(soc)
+    #         elif event.type == pygame.MOUSEBUTTONDOWN:
+    #             if event.button == 1:
+    #                my_turn = OnClick(screen, canvas, event, soc, my_color)
 
 
 if __name__ == '__main__':
