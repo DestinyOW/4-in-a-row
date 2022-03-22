@@ -1,7 +1,4 @@
-from calendar import c
 import socket
-from sqlite3 import Row
-from matplotlib.pyplot import contour
 import pygame
 
 pygame.init()
@@ -49,8 +46,7 @@ class GameScreen:
         self.screen_width = width
         self.screen_height = height
 
-        self.screen = pygame.display.set_mode(
-            (self.screen_width, self.screen_height))
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         self.screen.fill(COLORS['BACKGROUND'])
         pygame.display.flip()
 
@@ -139,7 +135,7 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 client.Close()
-                pygame.quit()
+                pygame.quit()                                                                                                                                                      
                 quit()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 col = screen.PixelsToCol(event)
