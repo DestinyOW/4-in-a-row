@@ -1,92 +1,119 @@
 import socket
+from matplotlib.pyplot import close
 import pygame
 
+
 pygame.init()
+pygame.display.set_caption("4 In a Row")
 
 SCR_WIDTH = 1000
 SCR_HEIGHT = 1000
 BOARD_COLS = 7
 BOARD_ROWS = 6
+BACKGROUND_COLOR = (229,252,194)
+RECT_WIDTH = 10
+CIRCLE_WIDTH = 10
+CANVAS_LEFT_OFFSET = 300
+CANVAS_UP_OFFSET = 300
+CANVAS_WIDTH = SCR_WIDTH - CANVAS_LEFT_OFFSET
+CANVAS_HEIGHT = SCR_HEIGHT - CANVAS_UP_OFFSET
 
-screen = pygame.display.set_mode((SCR_WIDTH,SCR_HEIGHT))
+def GetAppScreen():
+    screen = pygame.display.set_mode((SCR_WIDTH,SCR_HEIGHT))
+    screen.fill(BACKGROUND_COLOR)
 
-pygame.display.set_caption("4 In a Row")
-screen.fill((229,252,194))
-pygame.display.flip()
+    pygame.display.flip()
+    return screen
+
 
 def DrawBoard(screen):
-    rect_width = 10
-    canvas_left_offset = 300
-    canvas_right_offset = 300
-
-    canvas_width = SCR_WIDTH - canvas_left_offset
-    canvas_height = SCR_HEIGHT - canvas_right_offset
-
-    canvas = pygame.Surface((canvas_width, canvas_height)).convert()
+    canvas = pygame.Surface((CANVAS_WIDTH, CANVAS_HEIGHT)).convert()
     canvas.fill((255, 255, 255))
     
-    rect_space = (canvas_width - rect_width * (BOARD_COLS + 1)) / BOARD_COLS
+    rect_space = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS
 
     for x in range(BOARD_COLS + 1):
-        rectangle = pygame.Rect(x * (rect_space + rect_width), 0, rect_width, canvas_height)
+        rectangle = pygame.Rect(x * (rect_space + RECT_WIDTH), 0, RECT_WIDTH, CANVAS_HEIGHT)
         pygame.draw.rect(canvas, (0, 0, 0), rectangle)
     
-    rect_space = (canvas_height - rect_width * (BOARD_ROWS +1)) / BOARD_ROWS
+    rect_space = (CANVAS_HEIGHT - RECT_WIDTH * (BOARD_ROWS +1)) / BOARD_ROWS
 
     for y in range(BOARD_ROWS + 1):
-        rectangle = pygame.Rect(0, y * (rect_space + rect_width), canvas_width, rect_width)
+        rectangle = pygame.Rect(0, y * (rect_space + RECT_WIDTH), CANVAS_WIDTH, RECT_WIDTH)
         pygame.draw.rect(canvas, (0, 0, 0), rectangle)
     
-    screen.blit(canvas , (canvas_left_offset / 2, canvas_right_offset / 2))
+    screen.blit(canvas , (CANVAS_LEFT_OFFSET / 2, CANVAS_UP_OFFSET / 2))
     pygame.display.flip()
 
+
+def AddToCanvas(screen, col, row, color):
+    canvas = pygame.Surface((CANVAS_WIDTH, CANVAS_HEIGHT)).convert()
+    canvas.fill((255, 255, 255))
+
+    rect_space_x = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS
+    rect_space_y = (CANVAS_HEIGHT - RECT_WIDTH * (BOARD_ROWS +1)) / BOARD_ROWS
+    radius = rect_space_x / 2
+    
+    print(canvas, color, (rect_space_x * col + radius, rect_space_y * row + radius), radius, CIRCLE_WIDTH)
+    pygame.draw.circle(canvas, color, (rect_space_x * col + radius, rect_space_y * row + radius), radius, CIRCLE_WIDTH)
+
+    screen.blit(canvas , (CANVAS_LEFT_OFFSET / 2, CANVAS_UP_OFFSET / 2))
+    pygame.display.flip()
+
+
+def CloseGame(soc):
+    pygame.quit()
+    soc.close()
+    quit()
+
+
+def OnClick(screen, event, soc, color):
+    mouse_x = event.pos[0]
+    mouse_y = event.pos[1]
+
+    rect_space = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS
+
+    for x in range(BOARD_COLS -1):
+        col_start = x * (rect_space + RECT_WIDTH) + CANVAS_LEFT_OFFSET / 2
+
+        if col_start  < mouse_x < col_start + RECT_WIDTH:    
+            soc.send(str(x).encode())
+            print("SENDING", x)
+            result = soc.recv(1024).decode()
+            print("Got", result)
+            
+            if result == "FALSE":
+                return True
+            elif result in ("WIN", "LOSE", "TIE"):
+                pass
+            else:
+                AddToCanvas(screen, x, int(result), color)
+                return False
+
+
 def main():
-    DrawBoard(screen , None)
+    screen = GetAppScreen()
+    DrawBoard(screen)
+
     ip = '127.0.0.1'
     port = 42069
     soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     soc.connect((ip,port))
-    ID = soc.recv(1024).decode()
-    if ID == "1": 
-        data = input("Enter a move: \n")
-        soc.sendall(data.encode())
-        board = soc.recv(1024).decode()
-        print(board)
+    
+    my_turn = soc.recv(1024).decode() == "1"
+    if my_turn:
+        my_color = (255, 0, 0)
+    else:
+        my_color = (0, 0, 255)
+    
     while True:
-        board = soc.recv(1024).decode()
-        if board == "WIN":
-            print("you win!")
-            soc.close()
-            break
-        elif board == "LOSE":
-            print("you lose!")
-            soc.close()
-            break
-        elif board == "TIE":
-            print("TIE!")
-            soc.close()
-            break
-        print(board)
-        board = "FALSE"
-        while board == "FALSE":
-        
-            data = input("Enter a move: \n")
-            soc.sendall(data.encode())
-            board = soc.recv(1024).decode()
-        
-        if board == "WIN":
-            print("you win!")
-            soc.close()
-            break
-        elif board == "LOSE":
-            print("you lose!")
-            soc.close()
-            break
-        elif board == "TIE":
-            print("TIE!")
-            soc.close()
-            break
-        print(board)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                CloseGame(soc)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                   my_turn = OnClick(screen, event, soc, my_color)
+
 
 if __name__ == '__main__':
     main()

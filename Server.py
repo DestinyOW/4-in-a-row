@@ -1,5 +1,6 @@
 import socket
 
+
 class Board:
     def __init__(self):
         self.board = [[0]*7 for _ in range(6)]  
@@ -15,13 +16,13 @@ class Board:
         return boardstring
     
     def AddToBoard(self,player,column):
-        if 0 > column or column>=7:
-            return False
+        if column < 0 or column >= 7:
+            return -1
         for row in range(len(self.board)-1, -1 , -1):
             if self.board[row][column] == 0:
                 self.board[row][column] = player
-                return True 
-        return False
+                return row
+        return -1
 
     def CheckIfWin(self):
         for row in self.board:
@@ -43,6 +44,7 @@ class Board:
             for col in range(row - 3):
                 if self.board[row][col] == self.board[row-1][col+1] == self.board[row-2][col+2] == self.board[row-3][col+3] != 0:
                     return self.board[row][col]
+        
         return 0
 
 class Player:
@@ -73,25 +75,29 @@ class Game:
         self.player1.conn.send(str(self.player1.ID).encode())
         self.player2.conn.send(str(self.player2.ID).encode())
 
-        
 
     def GameLoop(self):
-        while self.board.checkifwin() == 0 and '0' in self.board.getboarddata():
+        while self.board.CheckIfWin() == 0 and '0' in self.board.GetBoardData():
             if self.turn == self.player1.ID:
                 data = int(self.player1.conn.recv(1024).decode())
-                if not self.board.addtoboard(self.player1.ID, data):
+                row = self.board.AddToBoard(self.player1.ID, data)
+
+                while row == -1:
                     self.player1.conn.sendall("FALSE".encode())
-                    continue
-            
+                    data = int(self.player1.conn.recv(1024).decode())
+                    row = self.board.AddToBoard(self.player1.ID, data)
             else:
                 data = int(self.player2.conn.recv(1024).decode())
-                if not self.board.addtoboard(self.player2.ID, data):
-                    self.player2.conn.sendall("FALSE".encode())
-                    continue
+                row = self.board.AddToBoard(self.player2.ID, data)
                 
-            if self.board.checkifwin() == 0 and '0' in self.board.getboarddata():
-                self.player1.conn.sendall(self.board.getboarddata().encode())
-                self.player2.conn.sendall(self.board.getboarddata().encode())
+                while row == -1:
+                    self.player2.conn.sendall("FALSE".encode())
+                    data = int(self.player2.conn.recv(1024).decode())
+                    row = self.board.AddToBoard(self.player2.ID, data)
+                
+            if self.board.CheckIfWin() == 0 and '0' in self.board.GetBoardData():
+                self.player1.conn.sendall(str(row).encode())
+                self.player2.conn.sendall(str(row).encode())
                 self.turn = self.player1.ID + self.player2.ID - self.turn
         
         if self.board.checkifwin() == 1: 
