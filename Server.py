@@ -39,14 +39,17 @@ class Board:
                 if col[i] == col[i+1] == col[i+2] == col[i+3] != 0:
                     return col[i]
 
-        for row in range(len(self.board) - 3):
-            for col in range(row - 3):
-                if self.board[row][col] == self.board[row+1][col+1] == self.board[row+2][col+2] == self.board[row+3][col+3] != 0:
-                    return self.board[row][col]
+        # diagonal win
+        for row in range(3, len(self.board)):
+             for col in range(len(self.board[0]) - 3):
+                 if self.board[row][col] == self.board[row-1][col+1] == self.board[row-2][col+2] == self.board[row-3][col+3] != 0:
+                     return self.board[row][col]
 
-        for row in range(len(self.board) - 3, len(self.board)):
-            for col in range(row - 3):
-                if self.board[row][col] == self.board[row-1][col+1] == self.board[row-2][col+2] == self.board[row-3][col+3] != 0:
+
+        # diagonal win
+        for row in range(3, len(self.board)):
+            for col in range(3, len(self.board[0])):
+                if self.board[row][col] == self.board[row-1][col-1] == self.board[row-2][col-2] == self.board[row-3][col-3] != 0:
                     return self.board[row][col]
 
         return 0
