@@ -1,118 +1,180 @@
 import socket
-from matplotlib.pyplot import close
 import pygame
-
 
 pygame.init()
 pygame.display.set_caption("4 In a Row")
 
-SCR_WIDTH = 1000
-SCR_HEIGHT = 1000
-BOARD_COLS = 7
-BOARD_ROWS = 6
-BACKGROUND_COLOR = (229,252,194)
-RECT_WIDTH = 10
-CIRCLE_WIDTH = 10
-CANVAS_LEFT_OFFSET = 300
-CANVAS_UP_OFFSET = 300
-CANVAS_WIDTH = SCR_WIDTH - CANVAS_LEFT_OFFSET
-CANVAS_HEIGHT = SCR_HEIGHT - CANVAS_UP_OFFSET
+
+COLORS = {
+    "RED": (255, 0, 0),
+    "BLUE": (0, 0, 255),
+    "WHITE": (255, 255, 255),
+    "BLACK": (0, 0, 0),
+    "BACKGROUND": (220, 255, 190)
+}
 
 
+class Client():
+    def __init__(self, ip, port):
+        self.ip = ip
+        self.port = port
+        self.soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-def GetAppScreen():
-    screen = pygame.display.set_mode((SCR_WIDTH,SCR_HEIGHT))
-    screen.fill(BACKGROUND_COLOR)
+    def ConnectToServer(self):
+        self.soc.connect((self.ip, self.port))
 
-    pygame.display.flip()
-    return screen
+        self.id = self.soc.recv(1024).decode()
 
+        if self.id == "1":
+            self.my_color = COLORS['RED']
+            self.enemy_color = COLORS['BLUE']
+        else:
+            self.my_color = COLORS['BLUE']
+            self.enemy_color = COLORS['RED']
 
-def DrawBoard(screen):
-    canvas = pygame.Surface((CANVAS_WIDTH, CANVAS_HEIGHT)).convert()
-    canvas.fill((255, 255, 255))
+    def SendMove(self, col):
+        self.soc.send(str(col).encode())
+        row = self.soc.recv(1024).decode()
+        
+        return int(row) 
     
-    rect_space_x = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS + RECT_WIDTH
-    rect_space_y = (CANVAS_HEIGHT - RECT_WIDTH * (BOARD_ROWS +1)) / BOARD_ROWS + RECT_WIDTH
-
-    for x in range(BOARD_COLS + 1):
-        rectangle = pygame.Rect(x * (rect_space_x), 0, RECT_WIDTH, CANVAS_HEIGHT)
-        pygame.draw.rect(canvas, (0, 0, 0), rectangle)
-
-    for y in range(BOARD_ROWS + 1):
-        rectangle = pygame.Rect(0, y * (rect_space_y), CANVAS_WIDTH, RECT_WIDTH)
-        pygame.draw.rect(canvas, (0, 0, 0), rectangle)
-
-    screen.blit(canvas, (CANVAS_LEFT_OFFSET / 2, CANVAS_UP_OFFSET / 2))
-    pygame.display.flip()
-
-    return canvas
-
- 
-def AddToCanvas(screen, canvas, col, row, color):
-    rect_space_x = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS + RECT_WIDTH
-    rect_space_y = (CANVAS_HEIGHT - RECT_WIDTH * (BOARD_ROWS +1)) / BOARD_ROWS + RECT_WIDTH
-    radius = int(rect_space_x /2)
-    
-    print(canvas, color, (0, 0), radius, CIRCLE_WIDTH)
-    pygame.draw.circle(canvas, color, (0, 0), radius, CIRCLE_WIDTH)
-
-    screen.blit(canvas, (CANVAS_LEFT_OFFSET / 2, CANVAS_UP_OFFSET / 2))
-    pygame.display.flip()
+    def GetMove(self):
+        data = self.soc.recv(1024).decode()
+        
+        return map(int, data.split(','))
+         
+    def Close(self):
+        self.soc.close()
 
 
-def CloseGame(soc):
-    pygame.quit()
-    soc.close()
-    quit()
+class GameScreen:
+    def __init__(self, width, height, cols, rows):
+        # screen
+        self.screen_width = width
+        self.screen_height = height
 
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
+        self.screen.fill(COLORS['BACKGROUND'])
+        pygame.display.flip()
 
-def OnClick(screen, canvas, event, soc, color):
-    mouse_x = event.pos[0]
-    mouse_y = event.pos[1]
+        # board
+        self.cols = cols
+        self.rows = rows
 
-    rect_space = (CANVAS_WIDTH - RECT_WIDTH * (BOARD_COLS + 1)) / BOARD_COLS
+        self.line_width = 10
+        self.square_width = 80
+        self.square_height = 80
 
-    for x in range(BOARD_COLS -1):
-        col_start = x * (rect_space + RECT_WIDTH) + CANVAS_LEFT_OFFSET / 2
+        # canvas
+        self.canvas_width = self.square_width * \
+            self.cols + self.line_width * (self.cols + 1)
+        self.canvas_height = self.square_height * \
+            self.rows + self.line_width * (self.rows + 1)
 
-        if col_start  < mouse_x < col_start + RECT_WIDTH:    
-            soc.send(str(x).encode())
-            print("SENDING", x)
-            result = soc.recv(1024).decode()
-            print("Got", result)
-            
-            if result == "FALSE":
-                return True
-            elif result in ("WIN", "LOSE", "TIE"):
-                pass
-            else:
-                AddToCanvas(screen, canvas,x, int(result), color)
-                return False
+        self.canvas_offset_left = (self.screen_width - self.canvas_width) / 2
+        self.canvas_offset_top = (self.screen_height - self.canvas_height) / 2
+
+        self.canvas = pygame.Surface(
+            (self.canvas_width, self.canvas_height)).convert()
+
+    def DrawBoard(self):
+        self.canvas.fill(COLORS['WHITE'])
+
+        # draw vertical lines
+        for x in range(self.cols + 1):
+            rectangle = pygame.Rect(
+                x * (self.square_width + self.line_width), 0, self.line_width, self.canvas_height)
+            pygame.draw.rect(self.canvas, COLORS['BLACK'], rectangle)
+
+        # draw horizontal lines
+        for y in range(self.rows + 1):
+            rectangle = pygame.Rect(
+                0, y * (self.square_height + self.line_width), self.canvas_width, self.line_width)
+            pygame.draw.rect(self.canvas, COLORS['BLACK'], rectangle)
+
+        # update screen
+        self.screen.blit(
+            self.canvas, (self.canvas_offset_left, self.canvas_offset_top))
+        pygame.display.flip()
+
+    def DrawPiece(self, piece_col, piece_row, color):
+        radius = int(self.square_width / 2)
+
+        # circle's coordinates
+        circle_x = radius + self.line_width + piece_col * \
+            int((self.square_width + self.line_width))
+        circle_y = radius + self.line_width + piece_row * \
+            int((self.square_height + self.line_width))
+
+        pygame.draw.circle(self.canvas, color,
+                           (circle_x, circle_y), radius - 2, 0)
+
+        # update screen
+        self.screen.blit(
+            self.canvas, (self.canvas_offset_left, self.canvas_offset_top))
+        pygame.display.flip()
+
+    def PixelsToCol(self, event):
+        # mouse coodinates
+        mouse_x = event.pos[0]
+        mouse_y = event.pos[1]
+
+        if self.canvas_offset_top < mouse_y < self.screen_height - self.canvas_offset_top:
+            for x in range(self.cols + 1):
+                start_point = self.line_width + x * \
+                    (self.square_width + self.line_width) + \
+                    self.canvas_offset_left
+
+                if start_point < mouse_x < start_point + self.square_width:
+                    return x
+
+        return -1
 
 
 def main():
-    screen = GetAppScreen()
-    canvas = DrawBoard(screen)
+    screen = GameScreen(1000, 1000, 7, 6)
+    screen.DrawBoard()
 
-    ip = '127.0.0.1'
-    port = 42069
-    soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    soc.connect((ip,port))
-    
-    my_turn = soc.recv(1024).decode() == "1"
-    if my_turn:
-        my_color = (255, 0, 0)
-    else:
-        my_color = (0, 0, 255)
-    
-    # while True:
-    #     for event in pygame.event.get():
-    #         if event.type == pygame.QUIT:
-    #             CloseGame(soc)
-    #         elif event.type == pygame.MOUSEBUTTONDOWN:
-    #             if event.button == 1:
-    #                my_turn = OnClick(screen, canvas, event, soc, my_color)
+    client = Client('127.0.0.1', 42069)
+    client.ConnectToServer()
+    print(client.id)
+    if client.id == "2":
+        col, row = client.GetMove()
+        screen.DrawPiece(col, row, client.enemy_color)
+        print("first move")
+
+    print("STARTED WHILE LOOP")
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                client.Close()
+                pygame.quit()
+                quit()
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                print("GOT CLICK")
+                col = screen.PixelsToCol(event)
+                if col != -1:
+                    row = client.SendMove(col)
+                    print("SENDING",col)
+                    if row != -1:
+                        screen.DrawPiece(col, row, client.my_color)
+                        col, row = client.GetMove()
+                        if col == -2:
+                            if row == 0:
+                                print("TIE")
+                            elif row == int(client.id):
+                                print("YOU WIN")
+                            else:
+                                print("YOU LOSE")
+                            client.Close()
+                            pygame.quit()
+                            quit()
+                        else:
+                            print("GOT",col,row)
+                            screen.DrawPiece(col, row, client.enemy_color)
+                            
+                            pygame.event.clear()
+                            break
 
 
 if __name__ == '__main__':
