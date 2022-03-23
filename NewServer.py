@@ -5,8 +5,18 @@ class Board:
     def __init__(self):
         self.board = [[0] * 7 for _ in range(6)]
 
+    def GetBoardData(self):
+        boardstring = ""
+
+        for row in range(len(self.board)):
+            for column in range(len(self.board[row])):
+                boardstring += str(self.board[row][column]) + ' '
+            boardstring += '\n'
+        
+        return boardstring
+
     def AddToBoard(self, id, col):
-        if not 0 < col < 7:
+        if not 0 <= col < 7:
             return -1
 
         for row in range(len(self.board) - 1, -1, -1):
@@ -63,31 +73,58 @@ class Server:
         self.player2.send('2'.encode())
 
     def GameLoop(self):
-        if self.first_player_turn:
-            col = int(self.player1.recv(1024).decode())
-            row = self.AddToBoard(1, col)
-
-            while row == -1:
-                self.player1.send('-1'.encode())
+        while True:
+            if self.first_player_turn:
                 col = int(self.player1.recv(1024).decode())
-                row = self.AddToBoard(1, col)
+                print("Got from player1", col)
+                row = self.board.AddToBoard(1, col)
 
-            self.player1.send(("True").encode())
-        else:
-            pass
+                while row == -1:
+                    self.player1.send('-1'.encode())
+                    print("Sending player1", -1)
+                    col = int(self.player1.recv(1024).decode())
+                    print("Got from player1", col)
+                    row = self.board.AddToBoard(1, col)
 
-        self.player1.send((str(col) + ',' + str(row)).encode())
-        self.player2.send((str(col) + ',' + str(row)).encode())
+                self.player1.send(str(row).encode())
+                print("Sending player1", row)
+
+                win = self.board.CheckIfWin()
+                if win != 0:
+                    self.player1.send(('-2,' + str(win)).encode())
+                    self.player2.send(('-2,' + str(win)).encode())
+                    quit()
+                else:
+                    self.player2.send((str(col) + ',' + str(row)).encode())
+                    print('Sending player2', (str(col) + ',' + str(row)))
+            else:
+                col = int(self.player2.recv(1024).decode())
+                row = self.board.AddToBoard(2, col)
+
+                while row == -1:
+                    self.player2.send('-1'.encode())
+                    col = int(self.player2.recv(1024).decode())
+                    row = self.board.AddToBoard(2, col)
+
+                
+                self.player2.send(str(row).encode())
+                print("Sending player2", row)
+
+                win = self.board.CheckIfWin()
+                if win != 0:
+                    self.player1.send(('-2,' + str(win)).encode())
+                    self.player2.send(('-2,' + str(win)).encode())
+                else:
+                    self.player1.send((str(col) + ',' + str(row)).encode())  
+            
+            self.first_player_turn = not self.first_player_turn
+            print(self.board.GetBoardData())
 
 
 def main():
     server = Server('127.0.0.1', 42069)
     server.ConnectPlayers()
-
-    # recv player1
-    # send player 1
-    # send player 2
-
+    server.GameLoop()
 
 if __name__ == '__main__':
     main()

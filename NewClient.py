@@ -27,15 +27,22 @@ class Client():
 
         if self.id == "1":
             self.my_color = COLORS['RED']
+            self.enemy_color = COLORS['BLUE']
         else:
             self.my_color = COLORS['BLUE']
+            self.enemy_color = COLORS['RED']
 
     def SendMove(self, col):
-        self.client.soc.send(str(col).encode())
-        row = self.client.soc.recv(1024).decode()
+        self.soc.send(str(col).encode())
+        row = self.soc.recv(1024).decode()
         
-        return row == "True"
+        return int(row) 
+    
+    def GetMove(self):
+        data = self.soc.recv(1024).decode()
         
+        return map(int, data.split(','))
+         
     def Close(self):
         self.soc.close()
 
@@ -130,18 +137,41 @@ def main():
 
     client = Client('127.0.0.1', 42069)
     client.ConnectToServer()
+    print(client.id)
+    if client.id == "2":
+        col, row = client.GetMove()
+        screen.DrawPiece(col, row, client.enemy_color)
+        print("first move")
 
+    print("STARTED WHILE LOOP")
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 client.Close()
-                pygame.quit()                                                                                                                                                      
+                pygame.quit()
                 quit()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                print("GOT CLICK")
                 col = screen.PixelsToCol(event)
                 if col != -1:
-                    if client.SendMove(col):
+                    row = client.SendMove(col)
+                    print("SENDING",col)
+                    if row != -1:
                         screen.DrawPiece(col, row, client.my_color)
+                        col, row = client.GetMove()
+                        if col == -2:
+                            if row == 0:
+                                print("TIE")
+                            elif row == int(client.id):
+                                print("YOU WIN")
+                            else:
+                                print("YOU LOSE")
+                            client.Close()
+                            pygame.quit()
+                            quit()
+                        else:
+                            print("GOT",col,row)
+                            screen.DrawPiece(col, row, client.enemy_color)
 
 
 if __name__ == '__main__':
